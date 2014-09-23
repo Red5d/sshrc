@@ -10,9 +10,9 @@ function sshrc() {
             export SSHHOME=\$(mktemp -d -t .$(whoami).sshrc.XXXX)
             export SSHRCCLEANUP=\$SSHHOME
             trap \"rm -rf \$SSHRCCLEANUP; exit\" 0
-            echo $'"$(cat `which sshrc` | xxd -ps)"' | xxd -ps -r > \$SSHHOME/sshrc
+            echo $'"$(cat `which sshrc` | base64)"' | base64 -di > \$SSHHOME/sshrc
             chmod +x \$SSHHOME/sshrc
-            echo $'"$( cat << 'EOF' | xxd -ps
+            echo $'"$( cat << 'EOF' | base64
 #!/usr/bin/env bash
 bash --rcfile <(echo '
 if [ -e /etc/bash.bashrc ]; then source /etc/bash.bashrc; fi
@@ -21,9 +21,9 @@ source '$SSHHOME'/.sshrc;
 export PATH=$PATH:'$SSHHOME'
 ') "$@"
 EOF
-)"' | xxd -ps -r > \$SSHHOME/bashsshrc
+)"' | base64 -di > \$SSHHOME/bashsshrc
             chmod +x \$SSHHOME/bashsshrc
-            echo $'"$(tar cz -h -C $SSHHOME $files | xxd -ps)"' | xxd -ps -r | tar mxz -C \$SSHHOME
+            echo $'"$(tar cz -h -C $SSHHOME $files | base64)"' | base64 -di | tar mxz -C \$SSHHOME
             export SSHHOME=\$SSHHOME
             \$SSHHOME/bashsshrc
             rm -rf \$SSHRCCLEANUP
