@@ -7,24 +7,23 @@ function sshrc() {
             files="$files .sshrc.d"
         fi
         ssh -t "$@" "
-            if [ -e /etc/motd ]; then cat /etc/motd; fi
+            if [ \"\$(base64 --help | grep -e '-D')\" != \"\" ];then echo '-D' > /tmp/b64decode; else echo '-di' > /tmp/b64decode; fi
             export SSHHOME=\$(mktemp -d -t .$(whoami).sshrc.XXXX)
-            export SSHRCCLEANUP=\$SSHHOME
-            trap \"rm -rf \$SSHRCCLEANUP; exit\" 0
-            echo $'"$(cat "$0" | xxd -p)"' | xxd -p -r > \$SSHHOME/sshrc
+            echo $'"$(cat `which sshrc` | base64)"' | base64 \$(cat /tmp/b64decode) > \$SSHHOME/sshrc
             chmod +x \$SSHHOME/sshrc
-            echo $'"$( cat << 'EOF' | xxd -p
+            echo $'"$( cat << 'EOF' | base64
 #!/usr/bin/env bash
-exec bash --rcfile <(echo '
+bash --rcfile <(echo '
 if [ -e /etc/bash.bashrc ]; then source /etc/bash.bashrc; fi
 if [ -e ~/.bashrc ]; then source ~/.bashrc; fi
 source '$SSHHOME'/.sshrc;
 export PATH=$PATH:'$SSHHOME'
-') "$@"
+')
 EOF
-)"' | xxd -p -r > \$SSHHOME/bashsshrc
+)"' | base64 \$(cat /tmp/b64decode) > \$SSHHOME/bashsshrc
             chmod +x \$SSHHOME/bashsshrc
-            echo $'"$(tar cz -h -C $SSHHOME $files | xxd -p)"' | xxd -p -r | tar mxz -C \$SSHHOME
+            export SSHRCCLEANUP=\$SSHHOME
+            echo $'"$(tar cz -h -C $SSHHOME $files | base64)"' | base64 \$(cat /tmp/b64decode) | tar mxz -C \$SSHHOME
             export SSHHOME=\$SSHHOME
             \$SSHHOME/bashsshrc
             rm -rf \$SSHRCCLEANUP
