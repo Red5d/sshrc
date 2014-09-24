@@ -7,6 +7,7 @@ function sshrc() {
             files="$files .sshrc.d"
         fi
         ssh -t "$@" "
+            if [ -e /etc/motd ];then cat /etc/motd; fi
             if [ \"\$(base64 --help | grep -e '-D')\" != \"\" ];then echo '-D' > /tmp/b64decode; else echo '-di' > /tmp/b64decode; fi
             export SSHHOME=\$(mktemp -d -t .$(whoami).sshrc.XXXX)
             echo $'"$(cat `which sshrc` | base64)"' | base64 \$(cat /tmp/b64decode) > \$SSHHOME/sshrc
