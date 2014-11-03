@@ -25,49 +25,68 @@ You can use this to set environment variables, define functions, and run post-lo
 
 Install the [sshrc-git][] AUR package.
 
-### OS X
-
-    $ brew install sshrc
-
 ### Everything else
 
     $ wget https://raw.githubusercontent.com/Russell91/sshrc/master/sshrc
     $ chmod +x sshrc
     $ sudo mv sshrc /usr/local/bin #or anywhere else on your PATH
 
-### Advanced configuration
+## Advanced configuration
 
-Your most import configuration files (e.g. vim, inputrc) may not be bash scripts. Put them in ~/.sshrc.d and sshrc will copy them to a (guaranteed) unique folder in the server's /tmp directory after login. You can find them at $SSHHOME/.sshrc.d
+Your most import configuration files (e.g. vim, inputrc) may not be bash scripts. Put them in ~/.sshrc.d and sshrc will copy them to a (guaranteed) unique folder in the server's /tmp directory after login. You can find them at `$SSHHOME/.sshrc.d`. You can usually tell programs to load their configuration from the $SSHHOME/.sshrc.d directory by setting the right environment variables. Putting too much data in ~/.sshrc.d will slow down your login times. If the folder contents are > 64kB, the server may block your sshrc attempts.
 
-You can usually tell programs to load their configuration from the $SSHHOME/.sshrc.d directory by setting the right environment variables. For example, vim uses the VIM environment variable.
+### Vim
 
     $ mkdir -p ~/.sshrc.d
-    $ echo ':imap <special> jk <Esc>' > ~/.sshrc.d/vimrc
-    $ echo 'export VIM=$SSHHOME/.sshrc.d' > ~/.sshrc
+    $ echo ':imap <special> jk <Esc>' > ~/.sshrc.d/.vimrc
+    $ cat << 'EOF' > ~/.sshrc
+    export VIMINIT="let \$MYVIMRC='$SSHHOME/.sshrc.d/.vimrc' | source \$MYVIMRC"
+    EOF
     $ sshrc me@myserver
     $ vim # jk -> normal mode will work
 
-Putting too much data in ~/.sshrc.d will slow down your login times. If the folder contents are > 100kB, the server may start blocking your sshrc attempts.
 
-If you use tmux frequently, you can make sshrc work there as well.
+### Tmux
 
-    $ echo 'alias tmux="SHELL=$SSHHOME/bashsshrc tmux -S /tmp/russelltmux"
-      export SHELL=`which bash`
-      alias foo="echo I work with tmux, too"' > ~/.sshrc
+If you use tmux frequently, you can make sshrc work there as well. The following seems complicated, but hopefully it should just work.
+
+    $ cat << 'EOF' > ~/.sshrc
+    alias foo='echo I work with tmux, too'
+    
+    tmuxrc() {
+        local TMUXDIR=/tmp/russelltmuxserver
+        if ! [ -d $TMUXDIR ]; then
+            rm -rf $TMUXDIR
+            mkdir -p $TMUXDIR
+        fi
+        rm -rf $TMUXDIR/.sshrc.d
+        cp -r $SSHHOME/.sshrc $SSHHOME/bashsshrc $SSHHOME/sshrc $SSHHOME/.sshrc.d $TMUXDIR
+        SSHHOME=$TMUXDIR SHELL=$TMUXDIR/bashsshrc /usr/bin/tmux -S $TMUXDIR/tmuxserver $@
+    }
+    export SHELL=`which bash`
+    EOF
     $ sshrc me@myserver
-    $ tmux
+    $ tmuxrc
     $ foo
     I work with tmux, too
 
-When the SHELL variable is set, any new tmux server will load your configurations. The -S option will start a separate tmux server at /tmp/russelltmuxserver. Don't try to access the vanilla tmux server when your SHELL environment variable is set: if the server isn't already running, other users will get your configurations with their own sessions.
+The -S option will start a separate tmux server. You can still safely access the vanilla tmux server with `tmux`. Tmux servers can persist for longer than your ssh session, so the above `tmuxrc` function copies your configs to the more permenant /tmp/russelltmuxserver, which won't be deleted when you close your ssh session. Starting tmux with the SHELL environment variable set to bashsshrc will take care of loading your configs with each new terminal. Setting SHELL back to /bin/bash when you're done is important to prevent quirks due to tmux sessions having a non-default SHELL variable.
 
-### Troubleshooting
+### Specializing .sshrc to individual servers
 
-See the active issues if you're having a problem. Here are known current issues:
+You may have different configurations for different servers. I recommend the following structure for your ~/.sshrc control flow:
 
-* In rare cases your system may complain when you change your VIM environment variable. You can use `alias vim='vim -u /path/to/.vimrc'` in these cases.
-* xxd must be installed on both your local computer and server. If this is not the case, you can't use the tool. xxd can be installed via `apt-get install vim-common` or `yum install vim-common`
-* Temp files are not deleted during a ssh timeout due to the script being killed with a SIGHUP message before cleanup. This is fixed in master.
-* Finally, if the tool is hanging or giving errors about argument strings, you'll most likely need to reduce the size of your .sshrc.d directory. To debug the directory size, use `tar cz -h -C ~ .sshrc .sshrc.d | wc -c`
+    if [ $(hostname | grep server1 | wc -l) == 1 ]; then
+        echo 'server1'
+    fi
+    if [ $(hostname | grep server2 | wc -l) == 1 ]; then
+        echo 'server2'
+    fi
+
+### Tips
+
+* I don't recommend trying to throw your entire .vim folder into ~/.sshrc.d. It will more than likely be too big.
+
+* For larger configurations, consider copying files to an obscure folder on the server and using ~/.sshrc to automatically source those configurations on login..
 
 [sshrc-git]: https://aur.archlinux.org/packages/sshrc-git

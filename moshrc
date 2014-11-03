@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-function sshrc() {
+# moshrc is an alternative to sshrc for mosh users
+
+
+function moshrc() {
     local SSHHOME=${SSHHOME:=~}
     if [ -f $SSHHOME/.sshrc ]; then
         local files=.sshrc
@@ -11,48 +14,36 @@ function sshrc() {
             echo >&2 $'.sshrc.d and .sshrc files must be less than 64kb\ncurrent size: '$SIZE' bytes'
             exit 1
         fi
-        ssh -t "$@" "
-<<<<<<< HEAD
-            if [ -e /etc/motd ];then cat /etc/motd; fi
-            if [ \"\$(base64 --help | grep -e '-D')\" != \"\" ];then echo '-Di' > /tmp/b64decode; else echo '-di' > /tmp/b64decode; fi
-=======
+        mosh "$@" -- /bin/bash -c "
             command -v xxd >/dev/null 2>&1 || { echo >&2 \"sshrc requires xxd to be installed on the server, but it's not. Aborting.\"; exit 1; }
             if [ -e /etc/motd ]; then cat /etc/motd; fi
->>>>>>> upstream/master
             export SSHHOME=\$(mktemp -d -t .$(whoami).sshrc.XXXX)
-            echo $'"$(cat `which sshrc` | base64)"' | base64 \$(cat /tmp/b64decode) > \$SSHHOME/sshrc
-            chmod +x \$SSHHOME/sshrc
-<<<<<<< HEAD
-            echo $'"$( cat << 'EOF' | base64
-=======
+            export SSHRCCLEANUP=\$SSHHOME
+            trap \"rm -rf \$SSHRCCLEANUP; exit\" 0
+            echo $'$(cat $0 | xxd -p)' | xxd -p -r > \$SSHHOME/moshrc
+            chmod +x \$SSHHOME/moshrc
 
-            echo $'"$( cat << 'EOF' | xxd -p
+            echo $'$( cat << 'EOF' | xxd -p
 if [ -e /etc/bash.bashrc ]; then source /etc/bash.bashrc; fi
 if [ -e ~/.bashrc ]; then source ~/.bashrc; fi
-export PATH=$PATH:$SSHHOME
 source $SSHHOME/.sshrc;
+export PATH=$PATH:$SSHHOME
 EOF
-)"' | xxd -p -r > \$SSHHOME/sshrc.bashrc
+)' | xxd -p -r > \$SSHHOME/sshrc.bashrc
 
-            echo $'"$( cat << 'EOF' | xxd -p
->>>>>>> upstream/master
+            echo $'$( cat << 'EOF' | xxd -p
 #!/usr/bin/env bash
-bash --rcfile <(echo '
+exec bash --rcfile <(echo '
 if [ -e /etc/bash.bashrc ]; then source /etc/bash.bashrc; fi
 if [ -e ~/.bashrc ]; then source ~/.bashrc; fi
 source '$SSHHOME'/.sshrc;
 export PATH=$PATH:'$SSHHOME'
-')
+') "$@"
 EOF
-)"' | base64 \$(cat /tmp/b64decode) > \$SSHHOME/bashsshrc
+)' | xxd -p -r > \$SSHHOME/bashsshrc
             chmod +x \$SSHHOME/bashsshrc
-<<<<<<< HEAD
-            export SSHRCCLEANUP=\$SSHHOME
-            echo $'"$(tar cz -h -C $SSHHOME $files | base64)"' | base64 \$(cat /tmp/b64decode) | tar mxz -C \$SSHHOME
-=======
 
-            echo $'"$(tar cz -h -C $SSHHOME $files | xxd -p)"' | xxd -p -r | tar mxz -C \$SSHHOME
->>>>>>> upstream/master
+            echo $'$(tar cz -h -C $SSHHOME $files | xxd -p)' | xxd -p -r | tar mxz -C \$SSHHOME
             export SSHHOME=\$SSHHOME
             bash --rcfile \$SSHHOME/sshrc.bashrc
             "
@@ -62,7 +53,7 @@ EOF
 }
 if [ $1 ]; then
     command -v xxd >/dev/null 2>&1 || { echo >&2 "sshrc requires xxd to be installed locally, but it's not. Aborting."; exit 1; }
-    sshrc $@
+    moshrc $@
 else
     ssh
 fi
