@@ -12,56 +12,32 @@ function sshrc() {
             exit 1
         fi
         ssh -t "$@" "
-<<<<<<< HEAD
             if [ -e /etc/motd ];then cat /etc/motd; fi
             if [ \"\$(base64 --help | grep -e '-D')\" != \"\" ];then echo '-Di' > /tmp/b64decode; else echo '-di' > /tmp/b64decode; fi
-=======
-            command -v xxd >/dev/null 2>&1 || { echo >&2 \"sshrc requires xxd to be installed on the server, but it's not. Aborting.\"; exit 1; }
-            if [ -e /etc/motd ]; then cat /etc/motd; fi
->>>>>>> upstream/master
             export SSHHOME=\$(mktemp -d -t .$(whoami).sshrc.XXXX)
             echo $'"$(cat `which sshrc` | base64)"' | base64 \$(cat /tmp/b64decode) > \$SSHHOME/sshrc
             chmod +x \$SSHHOME/sshrc
-<<<<<<< HEAD
             echo $'"$( cat << 'EOF' | base64
-=======
-
-            echo $'"$( cat << 'EOF' | xxd -p
-if [ -e /etc/bash.bashrc ]; then source /etc/bash.bashrc; fi
-if [ -e ~/.bashrc ]; then source ~/.bashrc; fi
-export PATH=$PATH:$SSHHOME
-source $SSHHOME/.sshrc;
-EOF
-)"' | xxd -p -r > \$SSHHOME/sshrc.bashrc
-
-            echo $'"$( cat << 'EOF' | xxd -p
->>>>>>> upstream/master
 #!/usr/bin/env bash
-bash --rcfile <(echo '
+exec bash --rcfile <(echo '
 if [ -e /etc/bash.bashrc ]; then source /etc/bash.bashrc; fi
 if [ -e ~/.bashrc ]; then source ~/.bashrc; fi
-source '$SSHHOME'/.sshrc;
 export PATH=$PATH:'$SSHHOME'
+source '$SSHHOME'/.sshrc;
 ')
 EOF
 )"' | base64 \$(cat /tmp/b64decode) > \$SSHHOME/bashsshrc
             chmod +x \$SSHHOME/bashsshrc
-<<<<<<< HEAD
             export SSHRCCLEANUP=\$SSHHOME
             echo $'"$(tar cz -h -C $SSHHOME $files | base64)"' | base64 \$(cat /tmp/b64decode) | tar mxz -C \$SSHHOME
-=======
-
-            echo $'"$(tar cz -h -C $SSHHOME $files | xxd -p)"' | xxd -p -r | tar mxz -C \$SSHHOME
->>>>>>> upstream/master
             export SSHHOME=\$SSHHOME
-            bash --rcfile \$SSHHOME/sshrc.bashrc
+            bash --rcfile \$SSHHOME/bashsshrc
             "
     else
         echo "No such file: $SSHHOME/.sshrc"
     fi
 }
 if [ $1 ]; then
-    command -v xxd >/dev/null 2>&1 || { echo >&2 "sshrc requires xxd to be installed locally, but it's not. Aborting."; exit 1; }
     sshrc $@
 else
     ssh
